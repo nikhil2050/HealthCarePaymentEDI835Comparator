@@ -11,14 +11,14 @@ import com.aventstack.extentreports.ExtentReports;
 import com.aventstack.extentreports.ExtentTest;
 import com.aventstack.extentreports.Status;
 import com.aventstack.extentreports.reporter.ExtentHtmlReporter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Main {
 	final static String DIR_PATH = "D:\\NK\\OneDrive - LTI\\Other\\fvr\\200423_frlncr_vasu\\200425_835sample";
 	final static String ACTUAL_DIR_PATH = DIR_PATH + "\\actual\\" ;
 	final static String EXPECTED_DIR_PATH = DIR_PATH + "\\exp\\";
-//	final static String FILE_NAME = "1003853136.txt";
-//	final static String FILE_NAME = "1073675583.txt";
-	final static String FILE_NAME = "1114922341.txt";
+//	final static String FILE_NAME = "1003853136.txt"; // 1073675583, 1114922341
 	
 	final static String CONST_FILENAME = "FileName";
 	final static String CONST_SEGMENTNAME = "Segment Name";
@@ -27,14 +27,18 @@ public class Main {
 	final static String CONST_EXPECTED_VAL = "Expected";
 	final static String CONST_ACTUAL_VAL = "Actual";
 
-	public static ExtentTest LOGGER = null;
+	public static ExtentTest EXTENT_REPORT_LOGGER = null;
 	public static ExtentReports EXTENT = null;
-	
+	private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
+
+	public static String HTML = "<table><tr><td width=\"20%%\">%s</td><td width=\"15%%\">%s</td>"
+			+ "<td width=\"30%%\">%s</td><td width=\"35%%\">%s</td></tr></table>";
+
 	static {
 		ExtentHtmlReporter reporter = new ExtentHtmlReporter("./Reports/testFile.html");
 		EXTENT = new ExtentReports();
 		EXTENT.attachReporter(reporter);
-		LOGGER = EXTENT.createTest("LoginTest");
+		EXTENT_REPORT_LOGGER = EXTENT.createTest("LoginTest");
 	}
 	
 	public static void main(String[] args) throws FileNotFoundException {
@@ -44,7 +48,6 @@ public class Main {
 //		System.out.println(FileUtils.findDiffInLine("CAS*PR*1*162.30~", "CAS*PR*2*162.3~"));
 		iterateFiles();
 		
-//		LOGGER.log(Status.INFO, "Login something 2");
 		if(null!=EXTENT)
 			EXTENT.flush();
 	}
@@ -52,7 +55,14 @@ public class Main {
 	public static void iterateFiles() {
 		File directory = new File(EXPECTED_DIR_PATH);
 		File[] directoryListing = directory.listFiles();
+		
+		EXTENT_REPORT_LOGGER.log(Status.INFO, 
+				String.format(HTML,"FileName", "Segment", "Expected Value", "Actual Value"));
+		
+		
 		for(File expectedFile: directoryListing) {
+			LOGGER.info("Expected File -- "+expectedFile.getPath());
+			
 			File actualFile = new File(ACTUAL_DIR_PATH+expectedFile.getName());
 			if(null != actualFile) {
 				executeFilesComparison(expectedFile, actualFile);
@@ -60,7 +70,9 @@ public class Main {
 			}
 		}
 		EXTENT.flush();
+		LOGGER.info("Comparison done for all files.");
 	}
+	
 	public static void executeFilesComparison(File expectedFile, File actualFile) {
 		
 		try {
@@ -75,7 +87,6 @@ public class Main {
 	private static boolean executeStep1Comparison(File expectedFile, File actualFile) throws FileNotFoundException {
 		String logStr = "\n\n"+expectedFile.getName();
 		System.out.println(logStr);
-//		LOGGER.log(Status.INFO, logStr);
 		return FileUtils.isFileContentSame(expectedFile, actualFile);
 	}
 
@@ -90,12 +101,14 @@ public class Main {
 			
 			// If expectedLine = actualLine
 			if( expectedTextList.get(expCount).equals(actualTextList.get(actCount)) ) {
+				LOGGER.info("Success : Expected Data is: "+expectedTextList.get(expCount));
+				LOGGER.info("Success : Actual Data is: "+actualTextList.get(actCount));
 				actCount++;
 
 			} else {
 				// Error in expected line (segments matching)
 				if(FileUtils.getSegment(expectedTextList.get(expCount)).equals(FileUtils.getSegment(actualTextList.get(actCount)))) {
-					Map<String, String> map = createMap(expectedFile.getName(), FileUtils.getSegment(expectedTextList.get(expCount)),
+					Map<String, String> map = createMapAndLogReport(expectedFile.getName(), FileUtils.getSegment(expectedTextList.get(expCount)),
 							expectedTextList.get(expCount), actualTextList.get(actCount), 
 							String.valueOf(expCount+1), String.valueOf(actCount+1));
 					resultList.add(map);
@@ -103,7 +116,7 @@ public class Main {
 //					String logStr = "\nExpected line number:-"+expCount+"-"+expectedTextList.get(expCount);
 //					logStr = "\nActual line number:-"+actCount+"-"+actualTextList.get(actCount);
 //					System.out.println(logStr);
-//					LOGGER.log(Status.ERROR, expectedFile.getName()+"\t"+FileUtils.getSegment(expectedTextList.get(expCount))+"\t"
+//					EXTENT_LOGGER.log(Status.ERROR, expectedFile.getName()+"\t"+FileUtils.getSegment(expectedTextList.get(expCount))+"\t"
 //							+expectedTextList.get(expCount)+"\t"+actualTextList.get(actCount));
 
 					actCount++;
@@ -119,7 +132,7 @@ public class Main {
 
 							// Log all missed Expected lines in Actual 
 							for(int missedExpectedLineNo: missedExpectedLineNos) {
-								Map<String, String> map = createMap(expectedFile.getName(), FileUtils.getSegment(expectedTextList.get(missedExpectedLineNo)),
+								Map<String, String> map = createMapAndLogReport(expectedFile.getName(), FileUtils.getSegment(expectedTextList.get(missedExpectedLineNo)),
 										expectedTextList.get(missedExpectedLineNo), "Absent", 
 										String.valueOf(missedExpectedLineNo+1), null);
 								resultList.add(map);
@@ -160,7 +173,7 @@ public class Main {
 		return resultList;
 	}
 
-	public static Map<String, String> createMap(String fileName, String segmentName, 
+	public static Map<String, String> createMapAndLogReport(String fileName, String segmentName, 
 			String expectedVal, String actualVal, String expLineNo, String actLineNo) {
 		expectedVal = expectedVal.replace("~", "");
 		actualVal = actualVal.replace("~", "");
@@ -180,7 +193,12 @@ public class Main {
 		StringBuffer logStr = new StringBuffer("\nExpected line number:-").append(expLineNo).append("-").append(expectedVal)
 				.append("\nActual line number:-").append(null!=actLineNo?actLineNo:"N/A").append("-").append(actualVal);
 		System.out.println(logStr.toString());
-		LOGGER.log(Status.ERROR, fileName+" | "+segmentName+" | "+map.get(CONST_EXPECTED_VAL)+" | "+map.get(CONST_ACTUAL_VAL));
+		
+		LOGGER.info("Failure : Expected Data is: "+expectedVal);
+		LOGGER.info("Failure : Actual Data is: "+actualVal);
+		
+		EXTENT_REPORT_LOGGER.log(Status.ERROR, 
+				String.format(HTML, fileName, segmentName, map.get(CONST_EXPECTED_VAL), map.get(CONST_ACTUAL_VAL))); 
 		return map;
 	}
 	
