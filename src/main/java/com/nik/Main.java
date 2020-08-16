@@ -15,7 +15,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Main {
-	final static String DIR_PATH = "D:\\NK\\OneDrive - LTI\\Other\\fvr\\200423_frlncr_vasu\\200425_835sample";
+//	final static String DIR_PATH = "D:\\NK\\OneDrive - LTI\\Other\\fvr\\200423_frlncr_vasu\\200723_exp_act\\testcase2_lineMissingInExpected";
+	final static String DIR_PATH = "D:\\NK\\OneDrive - LTI\\Other\\fvr\\200423_frlncr_vasu\\200723_exp_act\\testcase3_prodIssue";
 	final static String ACTUAL_DIR_PATH = DIR_PATH + "\\actual\\" ;
 	final static String EXPECTED_DIR_PATH = DIR_PATH + "\\exp\\";
 //	final static String FILE_NAME = "1003853136.txt"; // 1073675583, 1114922341
@@ -102,7 +103,7 @@ public class Main {
 			// If expectedLine = actualLine
 			if( expectedTextList.get(expCount).equals(actualTextList.get(actCount)) ) {
 				LOGGER.info("Success : Expected Data is: "+expectedTextList.get(expCount));
-				LOGGER.info("Success : Actual Data is: "+actualTextList.get(actCount));
+				LOGGER.info("Success : Actual Data is: "+actualTextList.get(actCount) + "\n");
 				actCount++;
 
 			} else {
@@ -125,10 +126,11 @@ public class Main {
 				// Line missing in actual (Alternative #2)
 				else {
 					List<Integer> missedExpectedLineNos = new ArrayList<>();
+					boolean flagLineFoundInExpected = false;
 					for(int tmpExpCount=expCount+1; tmpExpCount<expectedTextList.size() ; tmpExpCount++) {
 						missedExpectedLineNos.add(tmpExpCount-1);
 						// Check if next Expected line matches current Actual line 
-						if(expectedTextList.get(tmpExpCount).equals(actualTextList.get(actCount))){
+						if(FileUtils.getSegment(expectedTextList.get(tmpExpCount)).equals(FileUtils.getSegment(actualTextList.get(actCount)))){
 
 							// Log all missed Expected lines in Actual 
 							for(int missedExpectedLineNo: missedExpectedLineNos) {
@@ -142,11 +144,24 @@ public class Main {
 //								System.out.println(logStr);
 							}
 							expCount = tmpExpCount;
+							expCount--;		// Decrement because it will be incremented in 'for' loop
 //							continue;
+							flagLineFoundInExpected = true;
 							break;
 						}
 					}
-					actCount++;
+					
+					// If line not found in Expected file, 
+					// 		1. mark it is extra line
+					// 		2. decrement 'expCount'
+					if(!flagLineFoundInExpected) {
+						Map<String, String> map = createMapAndLogReport(expectedFile.getName(), FileUtils.getSegment(actualTextList.get(actCount)),
+								"Absent", actualTextList.get(actCount), null, String.valueOf(actCount+1));
+						expCount--;
+						System.out.println("Extra line : "+actCount+" : "+actualTextList.get(actCount)+ "\n ---------------\n");
+						actCount++;
+					}
+//					actCount++;
 				}
 //				/*DELETE THIS*/else {
 //					actCount++;					
@@ -183,7 +198,7 @@ public class Main {
 		map.put("Expected Line", expLineNo);
 //		map.put(CONST_EXPECTED_LINE, expectedVal);
 //		map.put(CONST_ACTUAL_LINE, actualVal);	
-		if(actLineNo!=null) {
+		if(expLineNo!=null && actLineNo!=null) {
 			Map<String,String> subsegMap = FileUtils.findDiffInLine(expectedVal, actualVal).get(0);
 			for(Map.Entry subseg: subsegMap.entrySet()) {
 				map.put(CONST_EXPECTED_VAL, String.valueOf(subseg.getKey()));
@@ -195,7 +210,7 @@ public class Main {
 		System.out.println(logStr.toString());
 		
 		LOGGER.info("Failure : Expected Data is: "+expectedVal);
-		LOGGER.info("Failure : Actual Data is: "+actualVal);
+		LOGGER.info("Failure : Actual Data is: "+actualVal+"\n");
 		
 		EXTENT_REPORT_LOGGER.log(Status.ERROR, 
 				String.format(HTML, fileName, segmentName, map.get(CONST_EXPECTED_VAL), map.get(CONST_ACTUAL_VAL))); 
