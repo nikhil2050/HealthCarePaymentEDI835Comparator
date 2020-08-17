@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 
 public class Main {
 //	final static String DIR_PATH = "D:\\NK\\OneDrive - LTI\\Other\\fvr\\200423_frlncr_vasu\\200723_exp_act\\testcase2_lineMissingInExpected";
-	final static String DIR_PATH = "D:\\NK\\OneDrive - LTI\\Other\\fvr\\200423_frlncr_vasu\\200723_exp_act\\testcase3_prodIssue";
+	final static String DIR_PATH = "D:\\NK\\OneDrive - LTI\\Other\\fvr\\200423_frlncr_vasu\\200816_VasuFilesProd\\testcase5_200816";
 	final static String ACTUAL_DIR_PATH = DIR_PATH + "\\actual\\" ;
 	final static String EXPECTED_DIR_PATH = DIR_PATH + "\\exp\\";
 //	final static String FILE_NAME = "1003853136.txt"; // 1073675583, 1114922341
@@ -125,6 +125,8 @@ public class Main {
 				
 				// Line missing in actual (Alternative #2)
 				else {
+					boolean extraLinesFound = false;
+					
 					List<Integer> missedExpectedLineNos = new ArrayList<>();
 					boolean flagLineFoundInExpected = false;
 					for(int tmpExpCount=expCount+1; tmpExpCount<expectedTextList.size() ; tmpExpCount++) {
@@ -132,6 +134,30 @@ public class Main {
 						// Check if next Expected line matches current Actual line 
 						if(FileUtils.getSegment(expectedTextList.get(tmpExpCount)).equals(FileUtils.getSegment(actualTextList.get(actCount)))){
 
+							/*
+							 *  Inverse check if Line is missing in Expected (i.e. Extra line in Actual)
+							 */
+							List<Integer> extraActualLineNos = new ArrayList<>();
+							for(int ctr = 0; ctr<missedExpectedLineNos.size() ; ctr++ ) {
+								if(FileUtils.getSegment(expectedTextList.get(expCount)).equals(FileUtils.getSegment(actualTextList.get(actCount+ctr))) ) {
+									for(int extraActualLineNo: extraActualLineNos) {
+										Map<String, String> map = createMapAndLogReport(expectedFile.getName(), FileUtils.getSegment(actualTextList.get(actCount)),
+												"Absent", actualTextList.get(extraActualLineNo), null, String.valueOf(extraActualLineNo+1));
+										System.out.println("Extra line : "+(extraActualLineNo+1)+" : "+actualTextList.get(extraActualLineNo)+ "\n ---------------\n");
+										actCount++;		// Extra segment. So, Increment.
+									}
+									expCount--;
+//									actCount++;			// Goto to next line for comparison
+									extraLinesFound = true;
+									break;
+								}
+								extraActualLineNos.add(actCount+ctr);
+							}
+							
+							if(extraLinesFound) {
+								break;
+							}
+							
 							// Log all missed Expected lines in Actual 
 							for(int missedExpectedLineNo: missedExpectedLineNos) {
 								Map<String, String> map = createMapAndLogReport(expectedFile.getName(), FileUtils.getSegment(expectedTextList.get(missedExpectedLineNo)),
@@ -154,7 +180,7 @@ public class Main {
 					// If line not found in Expected file, 
 					// 		1. mark it is extra line
 					// 		2. decrement 'expCount'
-					if(!flagLineFoundInExpected) {
+					if(!extraLinesFound && !flagLineFoundInExpected) {
 						Map<String, String> map = createMapAndLogReport(expectedFile.getName(), FileUtils.getSegment(actualTextList.get(actCount)),
 								"Absent", actualTextList.get(actCount), null, String.valueOf(actCount+1));
 						expCount--;
